@@ -1,0 +1,84 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ResultadoMegaSena {
+  id                                String   @id @default(uuid())
+  acumulado                         Boolean?
+  dataApuracao                      String?
+  dataProximoConcurso               String?
+  dezenasSorteadasOrdemSorteio      String[]
+  exibirDetalhamentoPorCidade       Boolean?
+  indicadorConcursoEspecial         Int?
+  listaDezenas                      String[]
+  listaDezenasSegundoSorteio        String?
+  listaMunicipioUFGanhadores        Ganhador[]
+  listaRateioPremio                 RateioPremio[]
+  listaResultadoEquipeEsportiva     String[]
+  localSorteio                      String?
+  nomeMunicipioUFSorteio            String?
+  nomeTimeCoracaoMesSorte           String?
+  numero                            Int?
+  numeroConcursoAnterior            Int?
+  numeroConcursoFinal_0_5           Int?
+  numeroConcursoProximo             Int?
+  numeroJogo                        Int?
+  observacao                        String?
+  premiacaoContingencia             String?
+  tipoJogo                          String?
+  tipoPublicacao                    Int?
+  ultimoConcurso                    Boolean?
+  valorArrecadado                   Float?
+  valorAcumuladoConcurso_0_5        Float?
+  valorAcumuladoConcursoEspecial    Float?
+  valorAcumuladoProximoConcurso     Float?
+  valorEstimadoProximoConcurso      Float?
+  valorSaldoReservaGarantidora      Float?
+  valorTotalPremioFaixaUm           Float?
+  createdAt                         DateTime? @default(now())
+  updatedAt                         DateTime? @updatedAt
+}
+
+model Ganhador {
+  id                Int     @id @default(autoincrement())
+  ganhadores        Int?
+  municipio         String?
+  nomeFantasiaUL    String?
+  posicao           Int?
+  serie             String?
+  uf                String?
+  resultadoMegaSena ResultadoMegaSena? @relation(fields: [resultadoMegaSenaId], references: [id])
+  resultadoMegaSenaId String?
+
+  @@index([resultadoMegaSenaId, posicao], name: "unique_ganhador")
+}
+
+model RateioPremio {
+  id                  Int     @id @default(autoincrement())
+  descricaoFaixa      String?
+  faixa               Int?
+  numeroDeGanhadores  Int?
+  valorPremio         Float?
+  resultadoMegaSena  ResultadoMegaSena? @relation(fields: [resultadoMegaSenaId], references: [id])
+  resultadoMegaSenaId String?
+
+  @@index([resultadoMegaSenaId, faixa], name: "unique_rateio_premio")
+}
+
