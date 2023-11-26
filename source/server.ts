@@ -121,6 +121,29 @@ app.post('/resultados-megasena', async (request, reply) => {
   }
 });
 
+app.delete<{ Params: { id: string } }>(
+  '/resultados-megasena/:id',
+  async (request, reply) => {
+    try {
+      const { id } = request.params;
+
+      const jogoExcluido = await prisma.resultadoMegaSena.delete({
+        where: {
+          id: id,
+        },
+      });
+
+      reply.send({
+        mensagem: `Jogo ${id} excluído com sucesso.`,
+        jogoExcluido,
+      });
+    } catch (error) {
+      console.error(error);
+      reply.status(500).send({ error: 'Erro ao excluir o jogo' });
+    }
+  }
+);
+
 app
   .listen({
     host: '0.0.0.0',
