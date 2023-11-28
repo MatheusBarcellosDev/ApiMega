@@ -123,11 +123,13 @@ app.post('/users', async (request, replay) => {
 
   const { name, email, password } = createUserSchema.parse(request.body);
 
+  const hashedPassword = await bcrypt.hash(password, 10); // Gera o hash da senha
+
   await prisma.user.create({
     data: {
       name,
       email,
-      password,
+      password: hashedPassword, // Salva o hash da senha
     },
   });
 
