@@ -1,16 +1,118 @@
-import { PrismaClient } from '@prisma/client';
-import fastify from 'fastify';
+import { PrismaClient, User } from '@prisma/client';
+import fastify, { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 const app = fastify();
 
 const prisma = new PrismaClient();
+
+const JWT_SECRET = 'secreto';
+
+const tokenBlacklist: string[] = [];
+
+interface AuthenticatedRequest extends FastifyRequest {
+  user?: {
+    userId: string;
+    email: string;
+  };
+}
+
+const generateAuthToken = (user: User) => {
+  return jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, {
+    expiresIn: '1h',
+  });
+};
+
+const validatePassword = async (password: string, hashedPassword: string) => {
+  return await bcrypt.compare(password, hashedPassword);
+};
+
+app.post<{ Body: { email: string; password: string } }>(
+  '/auth/login',
+  async (request, reply) => {
+    const { email, password } = request.body;
+
+    // Verifique as credenciais no banco de dados
+    const user = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+
+    if (!user || !(await validatePassword(password, user.password))) {
+      reply.status(401).send({ error: 'Credenciais inválidas' });
+      return;
+    }
+
+    // Gere um token de autenticação (JWT)
+    const token = generateAuthToken(user);
+
+    reply.status(200).send({ token });
+  }
+);
+
+// Middleware de autenticação
+const authenticate = async (
+  request: AuthenticatedRequest,
+  reply: FastifyReply
+) => {
+  const token = request.headers['authorization'];
+
+  if (!token || tokenBlacklist.includes(token)) {
+    reply.status(401).send({ error: 'Token inválido ou expirado' });
+    return;
+  }
+
+  try {
+    // Verifica se o token é válido
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      userId: string;
+      email: string;
+    };
+    request.user = decoded; // Adiciona o usuário decodificado ao objeto de solicitação
+  } catch (error) {
+    reply.status(401).send({ error: 'Token inválido ou expirado' });
+    return;
+  }
+};
+
+app.post('/auth/logout', async (request, reply) => {
+  const tokenToRevoke = request.headers['authorization'];
+
+  if (!tokenToRevoke) {
+    reply.status(401).send({ error: 'Token de autenticação não fornecido' });
+    return;
+  }
+
+  // Adiciona o token à lista negra
+  tokenBlacklist.push(tokenToRevoke);
+
+  reply.status(200).send({ message: 'Logout realizado com sucesso' });
+});
 
 app.get('/users', async () => {
   const users = await prisma.user.findMany();
 
   return { users };
 });
+
+app.get(
+  '/auth/user',
+  { preHandler: authenticate },
+  async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    try {
+      const user = request.user; // Usuário já está disponível após a autenticação
+      reply.send({ user });
+    } catch (error) {
+      console.error(error);
+      reply
+        .status(500)
+        .send({ error: 'Erro ao obter detalhes do usuário autenticado' });
+    }
+  }
+);
 
 app.post('/users', async (request, replay) => {
   const createUserSchema = z.object({
@@ -32,16 +134,22 @@ app.post('/users', async (request, replay) => {
   replay.status(201).send();
 });
 
-app.get('/resultados-megasena', async (request, reply) => {
-  try {
-    const resultadosMegaSena = await prisma.resultadoMegaSena.findMany();
+app.post(
+  '/resultados-megasena',
+  { preHandler: authenticate },
+  async (request, reply) => {
+    try {
+      const resultadosMegaSena = await prisma.resultadoMegaSena.findMany();
 
-    reply.send({ resultadosMegaSena });
-  } catch (error) {
-    console.error(error);
-    reply.status(500).send({ error: 'Erro ao buscar resultados da Mega Sena' });
+      reply.send({ resultadosMegaSena });
+    } catch (error) {
+      console.error(error);
+      reply
+        .status(500)
+        .send({ error: 'Erro ao buscar resultados da Mega Sena' });
+    }
   }
-});
+);
 
 // Rota para criar um novo resultado da Mega Sena
 app.post('/resultados-megasena', async (request, reply) => {
@@ -123,6 +231,7 @@ app.post('/resultados-megasena', async (request, reply) => {
 
 app.delete<{ Params: { id: string } }>(
   '/resultados-megasena/:id',
+  { preHandler: authenticate },
   async (request, reply) => {
     try {
       const { id } = request.params;
