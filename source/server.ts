@@ -134,7 +134,7 @@ app.post('/users', async (request, replay) => {
   replay.status(201).send();
 });
 
-app.post(
+app.get(
   '/resultados-megasena',
   { preHandler: authenticate },
   async (request, reply) => {
