@@ -1,10 +1,18 @@
 import { PrismaClient, User } from '@prisma/client';
 import fastify, { FastifyReply, FastifyRequest } from 'fastify';
+import cors from '@fastify/cors';
+
 import { z } from 'zod';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
 const app = fastify();
+
+app.register(cors, {
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
+});
 
 const prisma = new PrismaClient();
 
