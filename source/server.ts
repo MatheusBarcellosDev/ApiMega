@@ -149,7 +149,12 @@ app.get(
   { preHandler: authenticate },
   async (request, reply) => {
     try {
-      const resultadosMegaSena = await prisma.resultadoMegaSena.findMany();
+      const resultadosMegaSena = await prisma.resultadoMegaSena.findMany({
+        include: {
+          listaMunicipioUFGanhadores: true,
+          listaRateioPremio: true,
+        },
+      });
 
       reply.send({ resultadosMegaSena });
     } catch (error) {
