@@ -268,6 +268,74 @@ app.delete<{ Params: { id: string } }>(
   }
 );
 
+app.post<{ Body: { numbers: string[] } }>(
+  '/user/saved-numbers',
+  { preHandler: authenticate },
+  async (request, reply) => {
+    try {
+      const { numbers } = request.body;
+      const userId = (request as AuthenticatedRequest).user?.userId;
+
+      if (!userId) {
+        reply.status(401).send({ error: 'Usuário não autenticado.' });
+        return;
+      }
+
+      // Verifique se o usuário já possui números salvos
+      const existingSavedNumbers = await prisma.savedNumbers.findFirst({
+        where: { userId: userId },
+      });
+
+      if (existingSavedNumbers) {
+        // Atualize os números se já existirem
+        await prisma.savedNumbers.update({
+          where: { id: existingSavedNumbers.id },
+          data: { numbers },
+        });
+      } else {
+        // Crie uma entrada para o usuário se não existir
+        await prisma.savedNumbers.create({
+          data: {
+            numbers,
+            user: { connect: { id: userId } },
+          },
+        });
+      }
+
+      reply.status(200).send({ message: 'Números salvos com sucesso.' });
+    } catch (error) {
+      console.error(error);
+      reply.status(500).send({ error: 'Erro ao salvar os números.' });
+    }
+  }
+);
+
+app.get<{ Params: { userId: string } }>(
+  '/user/saved-numbers/:userId',
+  { preHandler: authenticate },
+  async (request: AuthenticatedRequest, reply) => {
+    try {
+      const userId = (request as AuthenticatedRequest).user?.userId;
+
+      // Verifique se o usuário tem permissão para acessar os números salvos
+      if (userId !== request.user?.userId) {
+        reply.status(403).send({ error: 'Acesso não autorizado.' });
+        return;
+      }
+
+      // Obtenha os números salvos pelo usuário
+      const savedNumbers = await prisma.savedNumbers.findFirst({
+        where: { userId: userId },
+      });
+
+      reply.status(200).send({ savedNumbers });
+    } catch (error) {
+      console.error(error);
+      reply.status(500).send({ error: 'Erro ao obter os números salvos.' });
+    }
+  }
+);
+
 app
   .listen({
     host: '0.0.0.0',
