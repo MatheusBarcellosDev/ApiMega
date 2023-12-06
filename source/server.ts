@@ -101,7 +101,11 @@ app.post('/auth/logout', async (request, reply) => {
 });
 
 app.get('/users', async () => {
-  const users = await prisma.user.findMany();
+  const users = await prisma.user.findMany({
+    include: {
+      savedNumbers: true, // Inclui os savedNumbers relacionados a cada usuário
+    },
+  });
 
   return { users };
 });
