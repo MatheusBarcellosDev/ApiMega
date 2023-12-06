@@ -309,7 +309,24 @@ app.post<{ Body: { numbers: string[] } }>(
       reply.status(200).send({ message: 'Números salvos com sucesso.' });
     } catch (error) {
       console.error(error);
-      reply.status(500).send({ error: 'Erro ao salvar os números.' });
+
+      // Verifica se o erro é uma instância de Error e obtém a mensagem
+      if (error instanceof Error) {
+        reply
+          .status(500)
+          .send({
+            error: 'Erro ao salvar os números.',
+            message: error.message,
+          });
+      } else {
+        // Se não for um erro conhecido, envia uma mensagem genérica
+        reply
+          .status(500)
+          .send({
+            error: 'Erro ao salvar os números.',
+            message: 'Ocorreu um erro desconhecido.',
+          });
+      }
     }
   }
 );
